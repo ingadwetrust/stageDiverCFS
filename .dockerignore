@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.test
+.git
+.gitignore
+*.md
+coverage
+.vscode
+.idea
+*.log
+

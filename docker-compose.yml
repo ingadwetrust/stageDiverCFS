@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cfs-postgres
+    environment:
+      POSTGRES_USER: cfs_user
+      POSTGRES_PASSWORD: cfs_password
+      POSTGRES_DB: client_facing_server
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cfs_user -d client_facing_server"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cfs-api
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://cfs_user:cfs_password@postgres:5432/client_facing_server?schema=public
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@cfs.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      BDS_API_URL: ${BDS_API_URL:-http://host.docker.internal:3000}
+      BDS_SYNC_ENABLED: ${BDS_SYNC_ENABLED:-false}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npx prisma db push --accept-data-loss && node dist/seed.js && npm start"
+
+volumes:
+  postgres_data:
+

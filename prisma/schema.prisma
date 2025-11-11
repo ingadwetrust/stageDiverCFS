@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  token         String?
+  status        String   @default("active")
+  contactPhone  String?  @map("contact_phone")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  subscriptions    Subscription[]
+  projects         Project[]
+  riders           Rider[]
+  comments         RiderComment[]
+  activityLogs     UserLog[]
+  favoriteItems    FavoriteItem[]
+
+  @@map("user")
+}
+
+model UserLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  date        DateTime @default(now())
+  title       String
+  description String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_log")
+}
+
+model FavoriteItem {
+  id     Int    @id @default(autoincrement())
+  userId Int    @map("user_id")
+  name   String
+  data   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("favorite_item")
+}
+
+model SubscriptionType {
+  id                Int    @id @default(autoincrement())
+  name              String @unique
+  abilities         Json
+  maxRidersAllowed  Int    @default(1) @map("max_riders_allowed")
+  stripeProductId   String? @map("stripe_product_id")
+  stripePriceId     String? @map("stripe_price_id")
+
+  subscriptions Subscription[]
+
+  @@map("subscription_type")
+}
+
+model Subscription {
+  id                   Int      @id @default(autoincrement())
+  subscriptionTypeId   Int      @map("subscription_type_id")
+  userId               Int      @map("user_id")
+  subscriptionDate     DateTime @default(now()) @map("subscription_date")
+  status               String   @default("active")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  stripeCustomerId     String?  @map("stripe_customer_id")
+
+  subscriptionType SubscriptionType @relation(fields: [subscriptionTypeId], references: [id])
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+
+  @@map("subscription")
+}
+
+model Transaction {
+  id              Int      @id @default(autoincrement())
+  subscriptionId  Int      @map("subscription_id")
+  transactionDate DateTime @default(now()) @map("transaction_date")
+  status          String
+  amount          Float
+  invoice         String?
+  transactionCode String?  @map("transaction_code")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("transaction")
+}
+
+model Project {
+  id     Int    @id @default(autoincrement())
+  userId Int    @map("user_id")
+  name   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  riders      Rider[]
+  permissions ProjectPermission[]
+
+  @@map("project")
+}
+
+model ProjectPermission {
+  id         Int    @id @default(autoincrement())
+  projectId  Int    @map("project_id")
+  email      String
+  permission String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, email])
+  @@map("project_permission")
+}
+
+model Rider {
+  id          Int     @id @default(autoincrement())
+  ownerId     Int     @map("owner_id")
+  name        String
+  description String?
+  data        String?
+  projectId   Int?    @map("project_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  owner       User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  project     Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  comments    RiderComment[]
+  permissions RiderPermission[]
+
+  @@map("rider")
+}
+
+model RiderPermission {
+  id         Int    @id @default(autoincrement())
+  riderId    Int    @map("rider_id")
+  email      String
+  permission String
+
+  rider Rider @relation(fields: [riderId], references: [id], onDelete: Cascade)
+
+  @@unique([riderId, email])
+  @@map("rider_permission")
+}
+
+model RiderComment {
+  id         Int      @id @default(autoincrement())
+  riderId    Int      @map("rider_id")
+  userId     Int      @map("user_id")
+  date       DateTime @default(now())
+  title      String?
+  content    String
+  status     String?
+  positionXY String?  @map("position_xy")
+
+  rider Rider @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("rider_comment")
+}
+
